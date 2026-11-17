@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLM 在 F1 賽車策略的應用與實踐 | F1 Strategy Presentation</title>
+  <!-- Tailwind CSS via allowlisted CDN -->
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,400;0,600;0,700;1,700&family=Noto+Sans+TC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap');
+
+    :root {
+      --f1-red: #e10600;
+      --f1-dark: #0b0e14;
+      --f1-card: #151922;
+      --f1-border: #262c3a;
+      --f1-yellow: #ffd000;
+      --f1-green: #00d2be;
+      --f1-blue: #0090ff;
+      --f1-white: #f3f4f6;
+    }
+
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      background-color: var(--f1-dark);
+      color: var(--f1-white);
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .font-racing {
+      font-family: 'Chakra Petch', sans-serif;
+    }
+
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Custom Carbon texture */
+    .bg-carbon {
+      background-color: #0d1117;
+      background-image: 
+        linear-gradient(45deg, #11151c 25%, transparent 25%), 
+        linear-gradient(-45deg, #11151c 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #11151c 75%), 
+        linear-gradient(-45deg, transparent 75%, #11151c 75%);
+      background-size: 8px 8px;
+    }
+
+    .slide-enter {
+      animation: slideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.99);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* Custom scrollbar for slide content */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #11151c;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #2a3245;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #e10600;
+    }
+  </style>
+</head>
+<body class="w-screen h-screen flex flex-col justify-between bg-carbon antialiased relative">
+
+  <!-- Top Global Telemetry Bar -->
+  <header class="h-14 border-b border-[#262c3a] bg-[#0b0e14]/90 backdrop-blur px-6 flex items-center justify-between z-40 select-none">
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 bg-[#e10600] rounded-sm transform rotate-45 inline-block"></span>
+        <span class="font-racing font-bold tracking-wider text-lg text-white uppercase">F1 Strategy AI</span>
+      </div>
+      <div class="h-4 w-[1px] bg-gray-700 hidden sm:block"></div>
+      <div class="text-xs text-gray-400 font-mono-code hidden sm:flex items-center gap-2">
+        <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span>PIT WALL STRATEGY CELL // FIA 2026 REGS</span>
+      </div>
+    </div>
+
+    <!-- Right Controls -->
+    <div class="flex items-center gap-3">
+      <span id="slideCategory" class="px-2.5 py-0.5 rounded text-[11px] font-mono-code bg-[#1f2633] text-gray-300 border border-gray-700 uppercase tracking-wider">
+        ARCHITECTURE
+      </span>
+      <button id="btnOverview" title="投影片總覽 (O / Esc)" class="p-2 rounded hover:bg-[#1c222e] text-gray-300 hover:text-white transition border border-transparent hover:border-gray-700 text-xs flex items-center gap-1.5 font-mono-code">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+        <span class="hidden md:inline">目錄</span>
+      </button>
+      <button id="btnFullscreen" title="全螢幕模式 (F)" class="p-2 rounded hover:bg-[#1c222e] text-gray-300 hover:text-white transition border border-transparent hover:border-gray-700 text-xs">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Slide Viewing Canvas -->
+  <main class="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 flex items-center justify-center relative overflow-hidden">
+    <div id="slideViewport" class="w-full h-full flex flex-col justify-center">
+      <!-- Dynamic Slide Injected Here -->
+    </div>
+  </main>
+
+  <!-- Bottom Navigation & Telemetry -->
+  <footer class="h-16 border-t border-[#262c3a] bg-[#0b0e14]/95 px-6 flex items-center justify-between z-40 select-none">
+    <!-- Progress & Slide Number -->
+    <div class="flex items-center gap-4">
+      <div class="font-racing font-bold text-xl tracking-wider flex items-center">
+        <span id="currentSlideNum" class="text-[#e10600]">01</span>
+        <span class="text-gray-500 mx-1">/</span>
+        <span id="totalSlideNum" class="text-gray-400">10</span>
+      </div>
+      <div class="w-24 sm:w-48 h-2 bg-[#1a202c] rounded-full overflow-hidden border border-gray-800">
+        <div id="progressBar" class="h-full bg-gradient-to-r from-red-600 to-amber-500 transition-all duration-300" style="width: 10%;"></div>
+      </div>
+    </div>
+
+    <!-- Slide Title Hint -->
+    <div class="hidden lg:block text-xs text-gray-400 font-mono-code truncate max-w-md">
+      <span class="text-gray-600 mr-2">></span><span id="slideTitleHint">LLM 在 F1 賽車策略的應用與實踐</span>
+    </div>
+
+    <!-- Navigation Buttons -->
+    <div class="flex items-center gap-2">
+      <button id="btnPrev" class="px-3.5 py-1.5 rounded bg-[#1c222e] hover:bg-gray-700 text-white font-mono-code text-xs flex items-center gap-1 border border-gray-700 transition disabled:opacity-30 disabled:cursor-not-allowed">
+        <kbd class="text-[10px] bg-black/40 px-1 rounded border border-gray-600">◀</kbd> 上一頁
+      </button>
+      <button id="btnNext" class="px-3.5 py-1.5 rounded bg-[#e10600] hover:bg-red-700 text-white font-mono-code text-xs flex items-center gap-1 font-bold shadow-lg shadow-red-900/30 transition disabled:opacity-30 disabled:cursor-not-allowed">
+        下一頁 <kbd class="text-[10px] bg-black/40 px-1 rounded border border-red-400">▶</kbd>
+      </button>
+    </div>
+  </footer>
+
+  <!-- Slide Overview Grid Modal -->
+  <div id="overviewModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 p-6 md:p-12 overflow-y-auto hidden">
+    <div class="max-w-6xl mx-auto">
+      <div class="flex items-center justify-between pb-6 border-b border-gray-800 mb-8">
+        <div>
+          <h2 class="text-2xl font-racing font-bold text-white flex items-center gap-2">
+            <span class="w-2.5 h-2.5 bg-red-600 rounded-sm"></span> 投影片全域導覽 (Slide Grid)
+          </h2>
+          <p class="text-xs text-gray-400 font-mono-code mt-1">點擊任意卡片即可直接跳轉至該投影片</p>
+        </div>
+        <button id="btnCloseOverview" class="p-2 rounded bg-gray-800 hover:bg-gray-700 text-white">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div id="overviewGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <!-- Injected Cards -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Slide Definitions
+    const slides = [
+      {
+        id: 1,
+        category: "INTRO",
+        title: "LLM 在 F1 賽車策略的應用與實踐",
+        subtitle: "從不可變工程真理到動態 Pit Wall 決策大腦 (The Karpathy LLM Wiki Pattern)",
+        render: () => `
+          <div class="slide-enter flex flex-col items-center justify-center text-center space-y-6 max-w-4xl mx-auto py-8">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-950/80 border border-red-700/60 text-red-400 text-xs font-mono-code uppercase tracking-wider">
+              <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+              2026 Formula 1 Active Regulations & Engineering Wiki
+            </div>
+            
+            <h1 class="text-3xl sm:text-5xl md:text-6xl font-racing font-bold text-white tracking-wide uppercase leading-tight">
+              LLM 在 F1 賽車策略的<br><span class="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-amber-400 to-red-600">應用與實踐</span>
+            </h1>
+
+            <p class="text-sm sm:text-base md:text-lg text-gray-300 max-w-2xl font-light leading-relaxed">
+              以 Andrej Karpathy 的持久化 LLM Wiki 模式為核心架構，將 Pirelli 輪胎物理、FIA 運動與技術新規，轉化為高反應力、自主沉澱的賽車指揮決策系統。
+            </p>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-3xl pt-4">
+              <div class="bg-[#151922] border border-[#262c3a] p-3 rounded-lg text-left">
+                <div class="text-[10px] text-gray-400 font-mono-code uppercase">不可變真理層</div>
+                <div class="text-xs font-bold text-white mt-1">Raw Sources</div>
+                <div class="text-[11px] text-red-400 mt-0.5">FIA Regs & Pirelli</div>
+              </div>
+              <div class="bg-[#151922] border border-[#262c3a] p-3 rounded-lg text-left">
+                <div class="text-[10px] text-gray-400 font-mono-code uppercase">結構知識庫</div>
+                <div class="text-xs font-bold text-white mt-1">The Wiki Layer</div>
+                <div class="text-[11px] text-yellow-400 mt-0.5">5大模組 + 賽道檔案</div>
+              </div>
+              <div class="bg-[#151922] border border-[#262c3a] p-3 rounded-lg text-left">
+                <div class="text-[10px] text-gray-400 font-mono-code uppercase">成果複利循環</div>
+                <div class="text-xs font-bold text-white mt-1">Compounding</div>
+                <div class="text-[11px] text-emerald-400 mt-0.5">推演成果回流維基</div>
+              </div>
+              <div class="bg-[#151922] border border-[#262c3a] p-3 rounded-lg text-left">
+                <div class="text-[10px] text-gray-400 font-mono-code uppercase">2026 技術變革</div>
+                <div class="text-xs font-bold text-white mt-1">350kW ERS + Aero</div>
+                <div class="text-[11px] text-blue-400 mt-0.5">Issue 21 Section C</div>
+              </div>
+            </div>
+
+            <div class="pt-4 flex items-center gap-3 text-xs text-gray-500 font-mono-code">
+              <span>按 <kbd class="px-1.5 py-0.5 bg-gray-800 text-gray-300 rounded border border-gray-700">Space</kbd> 或 <kbd class="px-1.5 py-0.5 bg-gray-800 text-gray-300 rounded border border-gray-700">→</kbd> 開始導覽</span>
+            </div>
+          </div>
+        `
+      },
+      {
+        id: 2,
+        category: "ARCHITECTURE",
+        title: "為什麼 F1 賽車策略需要 LLM？",
+        subtitle: "傳統蒙地卡羅模擬與 LLM 語意推理的融合範式",
+        render: () => `
+          <div class="slide-enter grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch max-w-5xl mx-auto py-2">
+            <!-- Left: Traditional vs LLM -->
+            <div class="bg-[#151922] border border-[#262c3a] p-6 rounded-xl flex flex-col justify-between">
+              <div>
+                <div class="flex items-center gap-2 text-xs font-mono-code text-red-400 uppercase tracking-wider mb-2">
+                  <span class="w-1.5 h-1.5 bg-red-500 rounded-full"></span> 傳統模擬軟體的盲點
+                </div>
+                <h3 class="text-xl font-racing font-bold text-white mb-3">數值模型 vs 非結構化情資</h3>
+                <p class="text-xs text-gray-300 leading-relaxed mb-4">
+                  傳統策略軟體（如 Secu/Atlas）精於計算純粹的 <span class="text-amber-300 font-mono-code">Pit Loss</span> 與圈速退化衰退曲面，但在面對以下動態情資時毫無應變力：
+                </p>
+                <ul class="space-y-2 text-xs text-gray-400">
+                  <li class="flex items-start gap-2">
+                    <span class="text-red-500 font-bold">✕</span> 賽會即時判罰公告語義解讀（如 B1.9.6 是否構成碰觸犯規）
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-red-500 font-bold">✕</span> 車手 Team Radio 語氣與輪胎顆粒化（Graining）非結構化回饋
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-red-500 font-bold">✕</span> 紅旗暫停時維修道 Fast Lane 免費換胎等冷門法規仲裁
+                  </li>
+                </ul>
+              </div>
+
+              <div class="mt-6 pt-4 border-t border-gray-800">
+                <div class="text-[11px] text-gray-500 font-mono-code uppercase">LLM 角色定位</div>
+                <div class="text-xs text-gray-200 mt-1 font-semibold">「賽事首席策略長（Head of Race Strategy）」之動態推理大腦</div>
+              </div>
+            </div>
+
+            <!-- Right: Karpathy LLM Wiki Pattern -->
+            <div class="bg-[#151922] border border-[#262c3a] p-6 rounded-xl flex flex-col justify-between">
+              <div>
+                <div class="flex items-center gap-2 text-xs font-mono-code text-emerald-400 uppercase tracking-wider mb-2">
+                  <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> Karpathy LLM Wiki 核心架構
+                </div>
+                <h3 class="text-xl font-racing font-bold text-white mb-3">三層架構打造自主生長系統</h3>
+                
+                <div class="space-y-3 mt-3">
+                  <div class="p-2.5 rounded bg-black/40 border border-gray-800">
+                    <div class="flex items-center justify-between text-xs font-bold text-white">
+                      <span>1. Raw Sources (原始真理層)</span>
+                      <span class="text-[10px] text-red-400 font-mono-code">Read-Only</span>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-1">FIA 運動與技術法規 Issue 09/21、Pirelli 賽後官方複盤，不可被竄改。</p>
+                  </div>
+
+                  <div class="p-2.5 rounded bg-black/40 border border-gray-800">
+                    <div class="flex items-center justify-between text-xs font-bold text-white">
+                      <span>2. The Wiki (結構化知識層)</span>
+                      <span class="text-[10px] text-yellow-400 font-mono-code">LLM Owned</span>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-1">5 大戰略模組、賽道 Dossier，具備 YAML 元數據與雙向鏈結。</p>
+                  </div>
+
+                  <div class="p-2.5 rounded bg-black/40 border border-gray-800">
+                    <div class="flex items-center justify-between text-xs font-bold text-white">
+                      <span>3. Compounding (成果沉澱循環)</span>
+                      <span class="text-[10px] text-emerald-400 font-mono-code">Evolution</span>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-1">深度 Query 推演（如蒙札極速模擬）自動凝結回 Wiki，知識持續複利成長。</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 pt-3 border-t border-gray-800 text-[11px] text-gray-400 font-mono-code flex justify-between">
+                <span>自動化 Lint 機制</span>
+                <span class="text-emerald-400">100% 鏈結完整無死鏈</span>
+              </div>
+            </div>
+          </div>
+        `
+      },
+      {
+        id: 3,
+        category: "TYRE PHYSICS",
+        title: "2026 輪胎物理與法規技術演進",
+        subtitle: "微型化窄胎、C6 配方除名、寬性能階梯與暖胎毯 96 小時控溫法規",
+        render: () => `
+          <div class="slide-enter grid grid-cols-1 lg:grid-cols-3 gap-5 max-w-6xl mx-auto py-2">
+            <!-- Box 1: Downsized Dimensions -->
+            <div class="bg-[#151922] border border-[#262c3a] p-5 rounded-xl">
+              <div class="text-[11px] font-mono-code text-amber-400 uppercase tracking-wider mb-1">DIMENSION EVOLUTION</div>
+              <h3 class="text-lg font-racing font-bold text-white mb-2">輪胎尺寸微型化</h3>
+              <p class="text-xs text-gray-400 mb-3">保持 18 吋輪圈，大幅縮小接觸面以降低賽車迎風阻力與未懸吊質量：</p>
+              
+              <div class="space-y-2 text-xs">
+                <div class="flex justify-between p-2 rounded bg-black/30 border border-gray-800">
+                  <span class="text-gray-300">前輪寬度</span>
+                  <span class="font-mono-code text-red-400 font-bold">280 mm (-25mm)</span>
+                </div>
+                <div class="flex justify-between p-2 rounded bg-black/30 border border-gray-800">
+                  <span class="text-gray-300">後輪寬度</span>
+                  <span class="font-mono-code text-red-400 font-bold">375 mm (-30mm)</span>
+                </div>
+                <div class="flex justify-between p-2 rounded bg-black/30 border border-gray-800">
+                  <span class="text-gray-300">前輪外徑</span>
+                  <span class="font-mono-code text-amber-400 font-bold">705 mm (-15mm)</span>
+                </div>
+                <div class="flex justify-between p-2 rounded bg-black/30 border border-gray-800">
+                  <span class="text-gray-300">後輪外徑</span>
+                  <span class="font-mono-code text-amber-400 font-bold">710 mm (-10mm)</span>
+                </div>
+              </div>
+
+              <div class="mt-4 p-2.5 rounded bg-red-950/30 border border-red-900/40 text-[11px] text-red-300">
+                ⚠️ <strong>物理代價</strong>：胎面變窄降低了熱容量（Thermal Capacity），使輪胎在高側向 G 力彎角（如巴塞隆納 T3）極易過熱。
+              </div>
+            </div>
+
+            <!-- Box 2: Pirelli Compounds -->
+            <div class="bg-[#151922] border border-[#262c3a] p-5 rounded-xl">
+              <div class="text-[11px] font-mono-code text-red-400 uppercase tracking-wider mb-1">COMPOUND MATRIX</div>
+              <h3 class="text-lg font-racing font-bold text-white mb-2">C1–C5 配方與階梯重構</h3>
+              
+              <div class="space-y-2 text-xs mt-3">
+                <div class="p-2 rounded bg-black/30 border border-gray-800 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-white border border-gray-400"></span>
+                    <span class="font-bold text-white">Hard (C1 / C2)</span>
+                  </div>
+                  <span class="text-[11px] text-gray-400">極高耐久 / 升溫慢</span>
+                </div>
+                <div class="p-2 rounded bg-black/30 border border-gray-800 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-yellow-400"></span>
+                    <span class="font-bold text-white">Medium (C3)</span>
+                  </div>
+                  <span class="text-[11px] text-gray-400">中庸萬用 / 正賽主力</span>
+                </div>
+                <div class="p-2 rounded bg-black/30 border border-gray-800 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-red-500"></span>
+                    <span class="font-bold text-white">Soft (C4 / C5)</span>
+                  </div>
+                  <span class="text-[11px] text-gray-400">極致抓地 / 迅速衰退</span>
+                </div>
+              </div>
+
+              <div class="mt-4 space-y-2 text-xs text-gray-300">
+                <div class="flex items-start gap-1.5">
+                  <span class="text-amber-400 font-bold">✦</span>
+                  <span><strong>剔除 C6 超軟配方</strong>：C6 與 C5 圈速差微弱，2026 正式退役。</span>
+                </div>
+                <div class="flex items-start gap-1.5">
+                  <span class="text-amber-400 font-bold">✦</span>
+                  <span><strong>拉大 Delta (0.8s–1.2s)</strong>：刻意打破策略趨同，讓多停站激進超車成為可能。</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Box 3: FIA Section C Tech Regs -->
+            <div class="bg-[#151922] border border-[#262c3a] p-5 rounded-xl">
+              <div class="text-[11px] font-mono-code text-emerald-400 uppercase tracking-wider mb-1">FIA SECTION C REGS</div>
+              <h3 class="text-lg font-racing font-bold text-white mb-2">暖胎毯與 TPMS 嚴管</h3>
+              <p class="text-xs text-gray-400 mb-3">依據 <strong>Article C10 (Issue 21)</strong> 嚴苛規範：</p>
+              
+              <ul class="space-y-2 text-xs text-gray-300">
+                <li class="p-2 rounded bg-black/30 border border-gray-800">
+                  <strong class="text-white">電阻式暖胎毯唯一合法</strong><br>
+                  <span class="text-[11px] text-gray-400">每條限 3 個獨立溫控區，強制採用 SISO 回授演算法。</span>
+                </li>
+                <li class="p-2 rounded bg-black/30 border border-gray-800">
+                  <strong class="text-white">96 小時操作數據黑盒子</strong><br>
+                  <span class="text-[11px] text-gray-400">加溫記錄隨時供 FIA 下載審查，嚴禁私自預熱超溫。</span>
+                </li>
+                <li class="p-2 rounded bg-black/30 border border-gray-800">
+                  <strong class="text-white">TPMS 實時串流與禁化學品</strong><br>
+                  <span class="text-[11px] text-gray-400">嚴禁軟化劑，TPMS 即時串流杜絕低壓偷抓地力。</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        `
+      },
+      {
+        id: 4,
+        category: "PIT STOP MATH",
+        title: "進站數學與燃油消耗靈敏度模型",
+        subtitle: "Pit Loss 拆解、80km/h 速限與每 10kg 燃油帶來 0.3s 的減重紅利",
+        render: () => `
+          <div class="slide-enter grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-6xl mx-auto py-2">
+            <!-- Left: Formula & Breakdown (7 cols) -->
+            <div class="lg:col-span-7 bg-[#151922] border border-[#262c3a] p-6 rounded-xl flex flex-col justify-between">
+              <div>
+                <div class="text-[11px] font-mono-code text-red-400 uppercase tracking-wider mb-1">MATHEMATICAL MODEL</div>
+                <h3 class="text-xl font-racing font-bold text-white mb-3">進站總時間損失 (Pit Loss) 拆解</h3>
+                
+                <div class="p-3 bg-black/40 border border-gray-800 rounded-lg text-center font-mono-code text-sm sm:text-base text-amber-300 mb-4">
+                  Total Pit Loss = Pit Lane Delta + Stationary Time + In/Out Delta
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                  <div class="p-3 rounded bg-black/20 border border-gray-800">
+                    <div class="text-gray-400 font-mono-code">Pit Lane Delta</div>
+                    <div class="text-base font-bold text-white mt-1">18s – 24s</div>
+                    <div class="text-[10px] text-gray-500 mt-1">FIA B1.6 80km/h 限速行駛損失</div>
+                  </div>
+                  <div class="p-3 rounded bg-black/20 border border-gray-800">
+                    <div class="text-gray-400 font-mono-code">Stationary Time</div>
+                    <div class="text-base font-bold text-white mt-1">1.9s – 2.3s</div>
+                    <div class="text-[10px] text-gray-500 mt-1">4輪更換純靜止工作時間</div>
+                  </div>
+                  <div class="p-3 rounded bg-black/20 border border-gray-800">
+                    <div class="text-gray-400 font-mono-code">In / Out Delta</div>
+                    <div class="text-base font-bold text-white mt-1">0.8s – 1.5s</div>
+                    <div class="text-[10px] text-gray-500 mt-1">減速進站與新胎初段升溫</div>
+                  </div>
+                </div>
+
+                <div class="mt-4 pt-4 border-t border-gray-800">
+                  <h4 class="text-xs font-bold text-white uppercase font-mono-code mb-2 text-emerald-400">
+                    Article C4 & C6: 燃油減重紅利方程 (Fuel Effect)
+                  </h4>
+                  <p class="text-xs text-gray-300 leading-relaxed">
+                    依據 FIA C6.4.4 禁止正賽加油，賽車起跑滿載約 100kg 燃油。每消耗 10kg 燃油：
+                  </p>
+                  <div class="mt-2 p-2 rounded bg-emerald-950/20 border border-emerald-800/40 font-mono-code text-xs text-emerald-300 flex items-center justify-between">
+                    <span>ΔT / 10kg Fuel ≈ 0.30s – 0.35s / lap 圈速提升</span>
+                    <span class="text-white font-bold">50 圈累積減重利多 ≈ 3.0s/lap</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="text-[11px] text-gray-400 font-mono-code mt-4">
+                策略核心哲學：額外一次進站的代價（~22s）能否靠新胎 Delta + 輕油優勢完全追回？
+              </div>
+            </div>
+
+            <!-- Right: Interactive Fuel vs Deg Calculator (5 cols) -->
+            <div class="lg:col-span-5 bg-[#151922] border border-[#262c3a] p-6 rounded-xl flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between text-xs font-mono-code text-gray-400 mb-2">
+                  <span class="text-amber-400 font-bold">INTERACTIVE SIMULATOR</span>
+                  <span>即時靈敏度試算</span>
+                </div>
+                <h3 class="text-lg font-racing font-bold text-white mb-3">油耗 vs 輪胎衰退交叉計算機</h3>
+
+                <div class="space-y-4 text-xs">
+                  <div>
+                    <div class="flex justify-between text-gray-300 mb-1">
+                      <span>當前比賽圈數 (Lap):</span>
+                      <span id="lapDisplay" class="font-mono-code text-amber-400 font-bold">第 25 圈</span>
+                    </div>
+                    <input type="range" id="lapSlider" min="1" max="55" value="25" class="w-full accent-red-600 bg-gray-800 rounded">
+                  </div>
+
+                  <div>
+                    <div class="flex justify-between text-gray-300 mb-1">
+                      <span>賽道輪胎退化率 (Degradation):</span>
+                      <span id="degDisplay" class="font-mono-code text-red-400 font-bold">0.12 s/圈</span>
+                    </div>
+                    <input type="range" id="degSlider" min="4" max="25" value="12" class="w-full accent-amber-500 bg-gray-800 rounded">
+                  </div>
+
+                  <div class="p-3 bg-black/40 rounded-lg border border-gray-800 space-y-2">
+                    <div class="flex justify-between text-[11px]">
+                      <span class="text-gray-400">已消耗油量估算:</span>
+                      <span id="fuelBurnt" class="font-mono-code text-white">45.5 kg</span>
+                    </div>
+                    <div class="flex justify-between text-[11px]">
+                      <span class="text-emerald-400">燃油減重紅利 (Fuel Delta):</span>
+                      <span id="fuelDelta" class="font-mono-code text-emerald-400 font-bold">-1.48 秒/圈</span>
+                    </div>
+                    <div class="flex justify-between text-[11px]">
+                      <span class="text-red-400">輪胎磨損衰退 (Tyre Delta):</span>
+                      <span id="tyreDelta" class="font-mono-code text-red-400 font-bold">+3.00 秒/圈</span>
+                    </div>
+                    <div class="pt-2 border-t border-gray-700 flex justify-between text-xs font-bold">
+                      <span class="text-white">淨單圈速度偏移 (Net Pace):</span>
+                      <span id="netPace" class="font-mono-code text-amber-300">+1.52 秒</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="simVerdict" class="mt-4 p-2.5 rounded bg-blue-950/30 border border-blue-800/40 text-[11px] text-blue-300 font-mono-code">
+                建議：高輪胎衰退已壓過減重紅利，進入 2 停視窗 (Box Window Open)！
+              </div>
+            </div>
+          </div>
+        `
+      },
+      {
+        id: 5,
+        category: "TACTICS",
+        title: "攻防戰術：Undercut 與 Overcut 物理機制",
+        subtitle: "350kW ERS 電池傾瀉、400ms 直道主動空力切換與輕油反殺",
+        render: () => `
+          <div class="slide-enter grid grid-cols-1 md:grid-cols-2 gap-6 max-w-6xl mx-auto py-2">
+            <!-- Undercut Card -->
+            <div class="bg-[#151922] border border-[#262c3a] p-6 rounded-xl flex flex-col justify-between relative overflow-hidden">
+              <div class="absolute top-0 right-0 w-24 h-24 bg-red-600/10 rounded-full blur-2xl"></div>
+              <div>
+                <div class="flex items-center gap-2 text-xs font-mono-code text-red-400 uppercase tracking-wider mb-1">
+                  <span>◀ EARLY STOP</span> 提前進站爭先
+                </div>
+                <h3 class="text-xl font-racing font-bold text-white mb-2">Undercut 戰術機制</h3>
+                <p class="text-xs text-gray-300 leading-relaxed mb-4">
+                  追趕者比對手<strong>早 1–2 圈進站</strong>，換上新胎在乾淨氣流中跑出極限 Out-lap。當對手在下一圈出站時，已被追趕者成功翻越。
+                </p>
+
+                <div class="space-y-2.5 text-xs">
+                  <div class="p-2.5 rounded bg-black/40 border border-gray-800">
+                    <span class="font-bold text-amber-300">1. 拉大膠料圈速階梯 (0.8–1.2s Delta)</span>
+                    <p class="text-[11px] text-gray-400 mt-0.5">2026 Pirelli 新膠料讓新胎對舊胎具備更大抓地優勢。</p>
+                  </div>
+
+                  <div class="p-2.5 rounded bg-black/40 border border-gray-800">
+                    <span class="font-bold text-red-400">2. 350 kW ERS-K 出站電池狂暴釋放</span>
+                    <p class="text-[11px] text-gray-400 mt-0.5">出站圈調用 4.0 MJ 電池傾瀉 475 匹馬力電能，但需精算 340km/h 遞減斷電曲線。</p>
+                  </div>
+
+                  <div class="p-2.5 rounded bg-black/40 border border-gray-800">
+                    <span class="font-bold text-emerald-400">3. Straight Mode 主動空力快速切換</span>
+                    <p class="text-[11px] text-gray-400 mt-0.5">≤400ms 內降阻 30%，即使出站遇到慢車也能瞬間在直道生吞，杜絕卡車陣。</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 pt-3 border-t border-gray-800 flex justify-between text-[11px] font-mono-code text-gray-400">
+                <span>防守對策：Cover the Undercut</span>
+                <span class="text-red-400">同圈/次圈立即跟進</span>
+              </div>
+            </div>
+
+            <!-- Overcut Card -->
+            <div class="bg-[#151922] border border-[#262c3a] p-6 rounded-xl flex flex-col justify-between relative overflow-hidden">
+              <div class="absolute top-0 right-0 w-24 h-24 bg-blue-600/10 rounded-full blur-2xl"></div>
+              <div>
+                <div class="flex items-center gap-2 text-xs font-mono-code text-blue-400 uppercase tracking-wider mb-1">
+                  <span>LATE STOP ▶</span> 延後進站反殺
+                </div>
+                <h3 class="text-xl font-racing font-bold text-white mb-2">Overcut 戰術機制</h3>
+                <p class="text-xs text-gray-300 leading-relaxed mb-4">
+                  追趕者<strong>晚於對手進站</strong>，選擇留在賽道上持續全力狂飆。
+                </p>
+
+                <div class="space-y-2.5 text-xs">
+                  <div class="p-2.5 rounded bg-black/40 border border-gray-800">
+                    <span class="font-bold text-blue-300">1. 油耗減重紅利壓倒磨耗</span>
+                    <p class="text-[11px] text-gray-400 mt-0.5">在低磨耗賽道（如摩納哥），底盤每圈都在變輕（~0.3s/10kg），輕油舊胎速度反而快於低溫新胎。</p>
+                  </div>
+
+                  <div class="p-2.5 rounded bg-black/40 border border-gray-800">
+                    <span class="font-bold text-purple-400">2. 新胎出站升溫極度困難</span>
+                    <p class="text-[11px] text-gray-400 mt-0.5">在低溫賽道或使用超硬 C1 配方時，新胎前 2 圈抓地力極低、滑動嚴重無法提速。</p>
+                  </div>
+
+                  <div class="p-2.5 rounded bg-black/40 border border-gray-800">
+                    <span class="font-bold text-yellow-400">3. 對手出站陷入車陣 (Traffic Trap)</span>
+                    <p class="text-[11px] text-gray-400 mt-0.5">對手提先進站後若落入中游 DRS Train，留在場上的車手便能獨享乾淨氣流跑出紫色圈速。</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 pt-3 border-t border-gray-800 flex justify-between text-[11px] font-mono-code text-gray-400">
+                <span>防守對策：Box Opposite 觸發</span>
+                <span class="text-blue-400">對手進站則留場</span>
+              </div>
+            </div>
+          </div>
+        `
+      },
+      {
+        id: 6,
+        category: "CONDITIONS",
+        title: "特殊賽況處置：SC、VSC 與紅旗免費換胎",
+        subtitle: "現賺 10 秒的 Free Pit Stop、進站承諾點 (Commit Point) 與 FIA 爭議條款",
+        render: () => `
+          <div class="slide-enter grid grid-cols-1 lg:grid-cols-3 gap-5 max-w-6xl mx-auto py-2">
+            <!-- VSC / SC Free Pit Stop -->
+            <div class="bg-[#151922] border border-[#262c3a] p-5 rounded-xl flex flex-col justify-between">
+              <div>
+                <div class="text-[11px] font-mono-code text-yellow-400 uppercase tracking-wider mb-1">FREE PIT STOP</div>
+                <h3 class="text-lg font-racing font-bold text-white mb-2">虛擬與實體安全車紅利</h3>
+                <p class="text-xs text-gray-300 leading-relaxed mb-4">
+                  當賽會觸發 VSC 或 Safety Car 時，賽道上的車輛均受 Delta 時間或安全車帶隊限制減速（行車時間增加近 40%）。
+                </p>
+
+                <div class="p-3 bg-black/40 border border-gray-800 rounded-lg space-y-2 text-xs">
+                  <div class="flex justify-between">
+                    <span class="text-gray-400">常規綠旗 Pit Loss:</span>
+                    <span class="font-mono-code text-red-400 font-bold">~ 22.0 秒</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-400">VSC 期間 Pit Loss:</span>
+                    <span class="font-mono-code text-emerald-400 font-bold">~ 12.5 秒</span>
+                  </div>
+                  <div class="pt-2 border-t border-gray-700 flex justify-between font-bold text-amber-300">
+                    <span>淨獲利時間 (Free Time):</span>
+                    <span class="font-mono-code">+ 9.5 秒！</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 p-2.5 rounded bg-yellow-950/30 border border-yellow-800/40 text-[11px] text-yellow-300">
+                只要在 VSC 狀態下進站，幾乎等於無痛獲取一套全新輪胎，瞬間扭轉戰局。
+              </div>
+            </div>
+
+            <!-- Commit Point -->
+            <div class="bg-[#151922] border border-[#262c3a] p-5 rounded-xl flex flex-col justify-between">
+              <div>
+                <div class="text-[11px] font-mono-code text-red-400 uppercase tracking-wider mb-1">MICRO-DECISION</div>
+                <h3 class="text-lg font-racing font-bold text-white mb-2">進站承諾點 (Commit Point)</h3>
+                <p class="text-xs text-gray-300 leading-relaxed mb-3">
+                  賽車在通過最後一個彎道與維修道進口減速線之間，存在僅 <strong>1 至 2 秒</strong> 的物理分歧點。
+                </p>
+
+                <div class="space-y-2 text-xs">
+                  <div class="p-2.5 rounded bg-black/30 border border-gray-800">
+                    <div class="font-bold text-white">若在承諾點前出發布 VSC：</div>
+                    <div class="text-[11px] text-emerald-400 mt-0.5">車手可直接切入 Pit Entry，享受全額 10 秒紅利。</div>
+                  </div>
+                  <div class="p-2.5 rounded bg-black/30 border border-gray-800">
+                    <div class="font-bold text-white">若在承諾點後才發布 VSC：</div>
+                    <div class="text-[11px] text-red-400 mt-0.5">車手已衝過維修道入口，必須以慢速多跑一整圈，窗口恐已關閉。</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 p-2.5 rounded bg-black/40 border border-gray-800 text-[11px] text-gray-300 font-mono-code">
+                戰例代表：[[wiki/05-decisions-cases/case-2026-madrid-antonelli-1stop|馬德里 Norris 錯過 Entry]]
+              </div>
+            </div>
+
+            <!-- Red Flag Free Tyre Change -->
+            <div class="bg-[#151922] border border-[#262c3a] p-5 rounded-xl flex flex-col justify-between">
+              <div>
+                <div class="text-[11px] font-mono-code text-blue-400 uppercase tracking-wider mb-1">FIA CONTROVERSY</div>
+                <h3 class="text-lg font-racing font-bold text-white mb-2">紅旗 Fast Lane 免費換胎</h3>
+                <p class="text-xs text-gray-300 leading-relaxed mb-3">
+                  依據 <strong>FIA Sporting Regulations B5.14.4 a.vii</strong>：
+                </p>
+                <div class="p-3 bg-red-950/20 border border-red-800/40 rounded-lg text-xs text-red-200 leading-relaxed">
+                  正賽因紅旗中止期間，所有停留於維修站 Fast Lane 排隊的賽車，<strong>均獲准免費更換輪胎與修復鼻翼</strong>，且滿足正賽必須使用兩種乾燥配方的硬性規定！
+                </div>
+              </div>
+
+              <div class="mt-4 p-2.5 rounded bg-black/40 border border-gray-800 text-[11px] text-gray-400">
+                ⚠️ <strong>極限戰術賭博</strong>：若預測即將出紅旗，領跑者應堅決留場不進站，等待紅旗觸發零代價換胎。
+              </div>
+            </div>
+          </div>
+        `
+      },
+      {
+        id: 7,
+        category: "CASE STUDY 1",
+        title: "實戰案例複盤：2026 馬德里站 Antonelli 1 停封神",
+        subtitle: "IFEMA 街道賽新鋪瀝青高演進、VSC 命運秒差與 Norris 痛失好局",
+        render: () => `
+          <div class="slide-enter grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-6xl mx-auto py-2">
+            <!-- Left Info (7 cols) -->
+            <div class="lg:col-span-7 bg-[#151922] border border-[#262c3a] p-6 rounded-xl flex flex-col justify-between">
+              <div>
+                <div class="flex items-center gap-2 text-xs font-mono-code text-red-400 uppercase tracking-wider mb-1">
+                  <span>MADRID MADRING GP 2026</span> 分站賽後戰術解構
+                </div>
+                <h3 class="text-xl font-racing font-bold text-white mb-3">Antonelli 的 VSC 1 停封神之戰</h3>
+                
+                <div class="space-y-3 text-xs text-gray-300 leading-relaxed">
+                  <p>
+                    2026 年西班牙馬德里 IFEMA 街道賽首次亮相。新鋪瀝青表面抓地力演進極快，街道賽道狹窄且超車窗口極度嚴苛，<strong>賽道位置（Track Position）具備決定性價值</strong>。
+                  </p>
+                  
+                  <div class="p-3 rounded bg-black/40 border border-gray-800 space-y-2">
+                    <div class="font-bold text-amber-300">關鍵轉折點：第 13 圈突發 VSC</div>
+                    <div class="text-[11px] text-gray-300">
+                      當時處於第 2 位的 Antonelli 距離維修道入口僅 300 公尺，梅賽德斯車隊毫不猶豫下達「Box Box」指令，成功以 12.5 秒超低損失換上全新 C2 Hard 輪胎。
+                    </div>
+                  </div>
+
+                  <div class="p-3 rounded bg-red-950/20 border border-red-900/30 text-[11px] text-red-200">
+                    <strong>Norris 悲劇</strong>：領跑的 Norris 在信號亮起前 1 秒剛好切過最後一彎通過維修道入口（Commit Point 錯過），被迫在場上多跑一整圈，此時 VSC 剛好解除，痛失 10 秒無痛換胎紅利！
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 pt-3 border-t border-gray-800 text-[11px] font-mono-code text-gray-400 flex justify-between">
+                <span>最終結果：Antonelli 1 停守位奪冠</span>
+                <span class="text-emerald-400">C2 Hard 跑滿 53 圈無衰竭</span>
+              </div>
+            </div>
+
+            <!-- Right: Strategy Matrix (5 cols) -->
+            <div class="lg:col-span-5 bg-[#151922] border border-[#262c3a] p-6 rounded-xl flex flex-col justify-between">
+              <div>
+                <div class="text-[11px] font-mono-code text-yellow-400 uppercase tracking-wider mb-2">DECISION MATRIX</div>
+                <h3 class="text-base font-racing font-bold text-white mb-3">雙雄戰略路徑對比</h3>
+
+                <div class="space-y-3 text-xs">
+                  <!-- Antonelli -->
+                  <div class="p-3 rounded bg-emerald-950/20 border border-emerald-800/40">
+                    <div class="flex items-center justify-between font-bold text-emerald-300">
+                      <span>Kimi Antonelli (Mercedes)</span>
+                      <span class="font-mono-code text-[11px]">P1 奪冠 🏆</span>
+                    </div>
+                    <div class="mt-2 text-[11px] text-gray-300 space-y-1">
+                      <div>• 起跑配方：Medium (C3)</div>
+                      <div>• 第 13 圈：VSC 期間完美換上 Hard (C2)</div>
+                      <div>• 總停站：<strong>1-Stop</strong></div>
+                      <div>• 策略精髓：犧牲末段圈速，換取賽道絕對領先位階</div>
+                    </div>
+                  </div>
+
+                  <!-- Norris -->
+                  <div class="p-3 rounded bg-red-950/20 border border-red-800/40">
+                    <div class="flex items-center justify-between font-bold text-red-300">
+                      <span>Lando Norris (McLaren)</span>
+                      <span class="font-mono-code text-[11px]">P2 飲恨 🥈</span>
+                    </div>
+                    <div class="mt-2 text-[11px] text-gray-300 space-y-1">
+                      <div>• 起跑配方：Medium (C3)</div>
+                      <div>• 第 22 圈：綠旗全損進站換 Hard</div>
+                      <div>• 第 45 圈：輪胎磨損耗盡被迫 2 停換 Soft</div>
+                      <div>• 總停站：<strong>2-Stop</strong>（多承擔 22s Pit Loss）</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 p-2 rounded bg-black/40 border border-gray-800 text-[11px] text-gray-400 font-mono-code">
+                LLM 啟示：街道賽中 Track Position 價值 > 新胎抓地力。
+              </div>
+            </div>
+          </div>
+        `
+      },
+      {
+        id: 8,
+        category: "CASE STUDY 2",
+        title: "實戰案例複盤：2026 巴塞隆納 Hamilton 3 停逆轉",
+        subtitle: "側向力 5/5 左前輪極限撕裂、全配方衝刺戰略與法拉利首勝",
+        render: () => `
+          <div class="slide-enter grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-6xl mx-auto py-2">
+            <!-- Left Info (7 cols) -->
+            <div class="lg:col-span-7 bg-[#151922] border border-[#262c3a] p-6 rounded-xl flex flex-col justify-between">
+              <div>
+                <div class="flex items-center gap-2 text-xs font-mono-code text-red-500 uppercase tracking-wider mb-1">
+                  <span>BARCELONA-CATALUNYA GP 2026</span> 分站賽後戰術解構
+                </div>
+                <h3 class="text-xl font-racing font-bold text-white mb-3">Hamilton 披上紅袍後的 3 停極限衝刺</h3>
+                
+                <div class="space-y-3 text-xs text-gray-300 leading-relaxed">
+                  <p>
+                    加泰隆尼亞賽道以 3 號長彎與最後全油門彎角聞名，Pirelli 評級中<strong>側向力高達 5/5</strong>，瀝青粗糙度 4/5，左前輪面臨嚴重撕裂與過熱衰退。
+                  </p>
+                  
+                  <div class="p-3 rounded bg-black/40 border border-gray-800 space-y-1.5">
+                    <div class="font-bold text-red-400">主流策略盲點：防守型 2-Stop (Medium-Hard-Hard)</div>
+                    <div class="text-[11px] text-gray-300">
+                      包括紅牛與麥拉倫均採用常規 2 停，要求車手在每個 Stint 後半段大幅 Lift & Coast 與保胎，防止進入 The Cliff（抓地力懸崖）。
+                    </div>
+                  </div>
+
+                  <div class="p-3 rounded bg-red-950/20 border border-red-900/30 text-[11px] text-red-200">
+                    <strong>法拉利奇兵 3-Stop 戰術 (Soft-Hard-Medium-Hard)</strong>：
+                    Hamilton 享有車隊分配的全套新鮮輪胎，每個 Stint 均以排位賽節奏全力衝刺（Push Flat-Out），利用圈速差生吞對手，最終在第 48 圈 VSC 時機錦上添花鎖定勝局！
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 pt-3 border-t border-gray-800 text-[11px] font-mono-code text-gray-400 flex justify-between">
+                <span>經典反轉：3 停擊敗 2 停</span>
+                <span class="text-red-400">Hamilton 法拉利生涯歷史首勝</span>
+              </div>
+            </div>
+
+            <!-- Right: Tire Stint Breakdown (5 cols) -->
+            <div class="lg:col-span-5 bg-[#151922] border border-[#262c3a] p-6 rounded-xl flex flex-col justify-between">
+              <div>
+                <div class="text-[11px] font-mono-code text-amber-400 uppercase tracking-wider mb-2">STINT EXECUTION</div>
+                <h3 class="text-base font-racing font-bold text-white mb-3">4 段 Stint 極限圈速釋放</h3>
+
+                <div class="space-y-2 text-xs">
+                  <div class="p-2.5 rounded bg-black/30 border border-gray-800 flex items-center justify-between">
+                    <div>
+                      <span class="font-bold text-red-400">Stint 1 (圈 1–14)</span>
+                      <div class="text-[10px] text-gray-400">全新 Soft (C3) 起跑超車衝刺</div>
+                    </div>
+                    <span class="font-mono-code text-xs text-white">P2 守衛</span>
+                  </div>
+
+                  <div class="p-2.5 rounded bg-black/30 border border-gray-800 flex items-center justify-between">
+                    <div>
+                      <span class="font-bold text-gray-300">Stint 2 (圈 15–32)</span>
+                      <div class="text-[10px] text-gray-400">全新 Hard (C1) 重油中段推進</div>
+                    </div>
+                    <span class="font-mono-code text-xs text-white">刷紫圈速</span>
+                  </div>
+
+                  <div class="p-2.5 rounded bg-black/30 border border-gray-800 flex items-center justify-between">
+                    <div>
+                      <span class="font-bold text-yellow-400">Stint 3 (圈 33–48)</span>
+                      <div class="text-[10px] text-gray-400">全新 Medium (C2) 瘋狂生吞 2 停領先車</div>
+                    </div>
+                    <span class="font-mono-code text-xs text-emerald-400">超車領先</span>
+                  </div>
+
+                  <div class="p-2.5 rounded bg-black/30 border border-gray-800 flex items-center justify-between">
+                    <div>
+                      <span class="font-bold text-gray-300">Stint 4 (圈 49–66)</span>
+                      <div class="text-[10px] text-gray-400">VSC 零代價換上 Hard (C1) 巡航奪冠</div>
+                    </div>
+                    <span class="font-mono-code text-xs text-amber-300">P1 衝線 🏁</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 p-2 rounded bg-black/40 border border-gray-800 text-[11px] text-gray-400 font-mono-code">
+                LLM 啟示：極高磨耗賽道上，新鮮橡膠圈速總和可碾壓 Pit Loss。
+              </div>
+            </div>
+          </div>
+        `
+      },
+      {
+        id: 9,
+        category: "DECISION TREE",
+        title: "策略指揮台（Pit Wall）LLM 決策樹模型",
+        subtitle: "Gap Monitoring、The Cliff 斷崖檢測、Box Opposite 與車陣穿越評估",
+        render: () => `
+          <div class="slide-enter flex flex-col justify-between max-w-5xl mx-auto py-2 h-full">
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <div class="text-[11px] font-mono-code text-emerald-400 uppercase tracking-wider mb-1">DECISION LOGIC</div>
+                  <h3 class="text-xl font-racing font-bold text-white">實時賽車策略工程師推理矩陣</h3>
+                </div>
+                <div class="text-xs font-mono-code text-gray-400">
+                  REF: [[wiki/05-decisions-cases/strategy-decision-tree]]
+                </div>
+              </div>
+
+              <!-- Interactive Decision Flowchart Cards -->
+              <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+                <!-- Step 1 -->
+                <div class="p-4 rounded-xl bg-[#151922] border border-[#262c3a] flex flex-col justify-between">
+                  <div>
+                    <div class="w-6 h-6 rounded bg-red-600 text-white font-racing font-bold flex items-center justify-center text-xs mb-2">01</div>
+                    <h4 class="font-bold text-white mb-1">Gap 差距監控</h4>
+                    <p class="text-[11px] text-gray-400">
+                      監控與前方對手差距是否落入 <strong>1.5s–2.0s</strong> 的 Undercut 攻擊窗口。
+                    </p>
+                  </div>
+                  <div class="mt-3 pt-2 border-t border-gray-800 text-[10px] font-mono-code text-amber-300">
+                    觸發：提先進站指令
+                  </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="p-4 rounded-xl bg-[#151922] border border-[#262c3a] flex flex-col justify-between">
+                  <div>
+                    <div class="w-6 h-6 rounded bg-yellow-500 text-black font-racing font-bold flex items-center justify-center text-xs mb-2">02</div>
+                    <h4 class="font-bold text-white mb-1">The Cliff 檢測</h4>
+                    <p class="text-[11px] text-gray-400">
+                      單圈圈速突然驟降 <strong>&gt;0.8s</strong>，遙測顯示胎溫激增，抓地力懸崖確立。
+                    </p>
+                  </div>
+                  <div class="mt-3 pt-2 border-t border-gray-800 text-[10px] font-mono-code text-red-400">
+                    處置：Box Box 換胎
+                  </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="p-4 rounded-xl bg-[#151922] border border-[#262c3a] flex flex-col justify-between">
+                  <div>
+                    <div class="w-6 h-6 rounded bg-blue-600 text-white font-racing font-bold flex items-center justify-center text-xs mb-2">03</div>
+                    <h4 class="font-bold text-white mb-1">Box Opposite 原則</h4>
+                    <p class="text-[11px] text-gray-400">
+                      「對手進站則留場，對手留場則進站」，在膠著僵局中製造戰略分歧點。
+                    </p>
+                  </div>
+                  <div class="mt-3 pt-2 border-t border-gray-800 text-[10px] font-mono-code text-blue-300">
+                    目的：分化賽道位階
+                  </div>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="p-4 rounded-xl bg-[#151922] border border-[#262c3a] flex flex-col justify-between">
+                  <div>
+                    <div class="w-6 h-6 rounded bg-emerald-600 text-white font-racing font-bold flex items-center justify-center text-xs mb-2">04</div>
+                    <h4 class="font-bold text-white mb-1">Traffic 出站評估</h4>
+                    <p class="text-[11px] text-gray-400">
+                      出站落點是否卡在慢車 DRS Train？若有慢車，是否能靠 Straight Mode 快速擊穿？
+                    </p>
+                  </div>
+                  <div class="mt-3 pt-2 border-t border-gray-800 text-[10px] font-mono-code text-emerald-300">
+                    邊界：防堵落入死局
+                  </div>
+                </div>
+              </div>
+
+              <!-- Integration with LLM -->
+              <div class="mt-6 p-4 rounded-xl bg-black/40 border border-gray-800">
+                <div class="flex items-center gap-2 text-xs font-bold text-white mb-1">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span> LLM 如何無縫介入實時決策樹？
+                </div>
+                <p class="text-xs text-gray-300 leading-relaxed">
+                  將賽事總監公告（Race Control Messages）、車手語音情緒（Radio Transcripts）、即時氣象雷達（Weather Radar）與遙測數值打包作為 LLM System Context，在 Safety Car 或突發降雨的 5 秒黃金期內，秒級產出決策建議與備用計畫（Plan B / Plan C）。
+                </p>
+              </div>
+            </div>
+
+            <div class="text-[11px] text-gray-500 font-mono-code pt-2">
+              賽車名言：A great strategy wins races you shouldn't have won; a bad strategy loses races you couldn't lose.
+            </div>
+          </div>
+        `
+      },
+      {
+        id: 10,
+        category: "ROADMAP",
+        title: "總結與賽車策略 LLM Wiki 未來展望",
+        subtitle: "持久化知識庫的自我迭代：從被動查詢到自主 Pit Wall Copilot",
+        render: () => `
+          <div class="slide-enter flex flex-col justify-between max-w-5xl mx-auto py-2 h-full">
+            <div>
+              <div class="text-center mb-6">
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-950/60 border border-red-800/40 text-red-400 text-xs font-mono-code uppercase mb-2">
+                  SUMMARY & FUTURE ROADMAP
+                </div>
+                <h3 class="text-2xl sm:text-3xl font-racing font-bold text-white">持久化知識庫的自我迭代價值</h3>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-5 text-xs">
+                <!-- Point 1 -->
+                <div class="p-5 rounded-xl bg-[#151922] border border-[#262c3a] flex flex-col justify-between">
+                  <div>
+                    <div class="text-base font-bold text-white mb-2 flex items-center gap-2">
+                      <span class="text-red-500 font-racing">01.</span> 擺脫靜態知識僵局
+                    </div>
+                    <p class="text-gray-300 leading-relaxed text-[11px]">
+                      傳統 RAG 只會機械檢索碎片，而 Andrej Karpathy LLM Wiki 模式讓 AI 主動維護核心概念、自動修正交叉鏈結，並隨著每場大獎賽的官方複盤不斷擴充。
+                    </p>
+                  </div>
+                  <div class="mt-4 pt-2 border-t border-gray-800 text-[10px] font-mono-code text-red-400">
+                    狀態：已建立 14 篇核心知識架構
+                  </div>
+                </div>
+
+                <!-- Point 2 -->
+                <div class="p-5 rounded-xl bg-[#151922] border border-[#262c3a] flex flex-col justify-between">
+                  <div>
+                    <div class="text-base font-bold text-white mb-2 flex items-center gap-2">
+                      <span class="text-amber-400 font-racing">02.</span> 規章與工程深度融合
+                    </div>
+                    <p class="text-gray-300 leading-relaxed text-[11px]">
+                      完整整合 2026 FIA Section B (Sporting) 與 Section C (Technical)，使策略推演能精確對齊 350kW ERS-K 衰減曲線、油載減重方程與暖胎毯操作日誌。
+                    </p>
+                  </div>
+                  <div class="mt-4 pt-2 border-t border-gray-800 text-[10px] font-mono-code text-amber-300">
+                    狀態：Issue 09 & 21 Section C 全面就緒
+                  </div>
+                </div>
+
+                <!-- Point 3 -->
+                <div class="p-5 rounded-xl bg-[#151922] border border-[#262c3a] flex flex-col justify-between">
+                  <div>
+                    <div class="text-base font-bold text-white mb-2 flex items-center gap-2">
+                      <span class="text-emerald-400 font-racing">03.</span> 未來演進：即時 Copilot
+                    </div>
+                    <p class="text-gray-300 leading-relaxed text-[11px]">
+                      下一步串接 OpenF1 即時遙測 API 與 Live Timing，使本 LLM Wiki 成為正賽期間即時輔助車隊領隊與車手的「Pit Wall Copilot」。
+                    </p>
+                  </div>
+                  <div class="mt-4 pt-2 border-t border-gray-800 text-[10px] font-mono-code text-emerald-400">
+                    狀態：架構拓展中
+                  </div>
+                </div>
+              </div>
+
+              <!-- Action banner -->
+              <div class="mt-6 p-4 rounded-xl bg-gradient-to-r from-red-950/40 via-black to-black border border-red-800/40 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                  <h4 class="text-xs font-bold text-white font-racing">探索完整賽車策略知識庫 (Wiki Repository)</h4>
+                  <p class="text-[11px] text-gray-400 mt-0.5">所有原始規章、分站 Dossier、決策樹與維護日誌均妥善保存於專案目錄中</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="px-3 py-1 rounded bg-[#1c222e] text-white font-mono-code text-xs border border-gray-700">
+                    C:\Users\Emily\...\f1-strategy-wiki
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="text-center text-xs text-gray-500 font-mono-code pt-4">
+              Thank You! Press <kbd class="px-1.5 py-0.5 bg-gray-800 text-gray-300 rounded border border-gray-700">O</kbd> to view all slides.
+            </div>
+          </div>
+        `
+      }
+    ];
+
+    let currentSlide = 0;
+
+    const slideViewport = document.getElementById('slideViewport');
+    const currentSlideNum = document.getElementById('currentSlideNum');
+    const totalSlideNum = document.getElementById('totalSlideNum');
+    const progressBar = document.getElementById('progressBar');
+    const slideCategory = document.getElementById('slideCategory');
+    const slideTitleHint = document.getElementById('slideTitleHint');
+    const btnPrev = document.getElementById('btnPrev');
+    const btnNext = document.getElementById('btnNext');
+    const btnOverview = document.getElementById('btnOverview');
+    const overviewModal = document.getElementById('overviewModal');
+    const btnCloseOverview = document.getElementById('btnCloseOverview');
+    const overviewGrid = document.getElementById('overviewGrid');
+    const btnFullscreen = document.getElementById('btnFullscreen');
+
+    totalSlideNum.textContent = String(slides.length).padStart(2, '0');
+
+    function renderSlide(index) {
+      if (index < 0 || index >= slides.length) return;
+      currentSlide = index;
+      const s = slides[currentSlide];
+
+      slideViewport.innerHTML = s.render();
+      currentSlideNum.textContent = String(currentSlide + 1).padStart(2, '0');
+      slideCategory.textContent = s.category;
+      slideTitleHint.textContent = s.title;
+
+      const progress = ((currentSlide + 1) / slides.length) * 100;
+      progressBar.style.width = `${progress}%`;
+
+      btnPrev.disabled = currentSlide === 0;
+      btnNext.disabled = currentSlide === slides.length - 1;
+
+      // Attach custom interactive handlers if on slide 4
+      if (s.id === 4) {
+        initSlide4Interactive();
+      }
+    }
+
+    function initSlide4Interactive() {
+      const lapSlider = document.getElementById('lapSlider');
+      const degSlider = document.getElementById('degSlider');
+      const lapDisplay = document.getElementById('lapDisplay');
+      const degDisplay = document.getElementById('degDisplay');
+      const fuelBurnt = document.getElementById('fuelBurnt');
+      const fuelDelta = document.getElementById('fuelDelta');
+      const tyreDelta = document.getElementById('tyreDelta');
+      const netPace = document.getElementById('netPace');
+      const simVerdict = document.getElementById('simVerdict');
+
+      function updateCalc() {
+        if (!lapSlider || !degSlider) return;
+        const lap = parseInt(lapSlider.value);
+        const degRate = parseInt(degSlider.value) / 100;
+
+        lapDisplay.textContent = `第 ${lap} 圈`;
+        degDisplay.textContent = `${degRate.toFixed(2)} s/圈`;
+
+        // 100kg total fuel over 55 laps -> ~1.82 kg per lap
+        const burnt = (lap * 1.82).toFixed(1);
+        fuelBurnt.textContent = `${burnt} kg`;
+
+        // Fuel delta: -0.325s per 10kg
+        const fDelta = - (burnt / 10 * 0.325);
+        fuelDelta.textContent = `${fDelta.toFixed(2)} 秒/圈`;
+
+        // Tyre delta: degRate * lap
+        const tDelta = degRate * lap;
+        tyreDelta.textContent = `+${tDelta.toFixed(2)} 秒/圈`;
+
+        const net = tDelta + fDelta;
+        netPace.textContent = `${net > 0 ? '+' : ''}${net.toFixed(2)} 秒`;
+
+        if (net > 2.0) {
+          simVerdict.className = "mt-4 p-2.5 rounded bg-red-950/40 border border-red-800/40 text-[11px] text-red-300 font-mono-code";
+          simVerdict.textContent = "🚨 輪胎抓地力完全崩潰！必須立即進站換胎（Cliff Reached / Box Now）！";
+        } else if (net > 0.8) {
+          simVerdict.className = "mt-4 p-2.5 rounded bg-yellow-950/40 border border-yellow-800/40 text-[11px] text-yellow-300 font-mono-code";
+          simVerdict.textContent = "⚠️ 輪胎老化超越減重紅利，進入停站視窗（Pit Window Open）！";
+        } else {
+          simVerdict.className = "mt-4 p-2.5 rounded bg-emerald-950/40 border border-emerald-800/40 text-[11px] text-emerald-300 font-mono-code";
+          simVerdict.textContent = "✅ 燃油減重優勢依然強勁，可持續留場執行 Overcut 延後進站！";
+        }
+      }
+
+      lapSlider.addEventListener('input', updateCalc);
+      degSlider.addEventListener('input', updateCalc);
+      updateCalc();
+    }
+
+    function buildOverviewGrid() {
+      overviewGrid.innerHTML = '';
+      slides.forEach((s, i) => {
+        const card = document.createElement('div');
+        card.className = `p-3 rounded-lg border cursor-pointer transition flex flex-col justify-between h-32 ${
+          i === currentSlide 
+            ? 'bg-red-950/40 border-red-600 text-white' 
+            : 'bg-[#151922] border-gray-800 hover:border-gray-600 text-gray-300'
+        }`;
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between text-[10px] font-mono-code mb-1">
+              <span class="text-red-400 font-bold">${String(i + 1).padStart(2, '0')}</span>
+              <span class="text-gray-500">${s.category}</span>
+            </div>
+            <div class="text-xs font-bold font-racing line-clamp-2">${s.title}</div>
+          </div>
+          <div class="text-[10px] text-gray-500 font-mono-code truncate mt-2">${s.subtitle}</div>
+        `;
+        card.onclick = () => {
+          renderSlide(i);
+          overviewModal.classList.add('hidden');
+        };
+        overviewGrid.appendChild(card);
+      });
+    }
+
+    // Event Listeners
+    btnPrev.onclick = () => { if (currentSlide > 0) renderSlide(currentSlide - 1); };
+    btnNext.onclick = () => { if (currentSlide < slides.length - 1) renderSlide(currentSlide + 1); };
+
+    btnOverview.onclick = () => {
+      buildOverviewGrid();
+      overviewModal.classList.remove('hidden');
+    };
+    btnCloseOverview.onclick = () => overviewModal.classList.add('hidden');
+
+    btnFullscreen.onclick = () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    };
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        if (!overviewModal.classList.contains('hidden')) return;
+        if (currentSlide < slides.length - 1) {
+          e.preventDefault();
+          renderSlide(currentSlide + 1);
+        }
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        if (!overviewModal.classList.contains('hidden')) return;
+        if (currentSlide > 0) {
+          e.preventDefault();
+          renderSlide(currentSlide - 1);
+        }
+      } else if (e.key === 'f' || e.key === 'F') {
+        btnFullscreen.click();
+      } else if (e.key === 'o' || e.key === 'O' || e.key === 'Escape') {
+        if (overviewModal.classList.contains('hidden')) {
+          btnOverview.click();
+        } else {
+          overviewModal.classList.add('hidden');
+        }
+      }
+    });
+
+    // Initial render
+    renderSlide(0);
+  </script>
+</body>
+</html>
